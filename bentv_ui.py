@@ -126,24 +126,25 @@ class bentv_ui:
                                         # FITDECT_MODE.
         self.changeUIMode()  # Initialises the messages.
 
-    def getIpAddr(self,ifname):
-        """Return the IP Address of the given interface (e.g 'wlan0')
-        from http://raspberrypi.stackexchange.com/questions/6714/how-to-get-the-raspberry-pis-ip-address-for-ssh.
-        """
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        return socket.inet_ntoa(fcntl.ioctl(
-            s.fileno(),
-            0x8915,  # SIOCGIFADDR
-            struct.pack('256s', ifname[:15])
-        )[20:24])
-
     def getHostName(self):
-        """Returns the hostname and IP address of the wireless interface as a tuple.
+        """Returns the hostname and IP address of the first physical 
+        (non loopback) network interface as a tuple, using the 
+        netifaces library..
         """
         hostname = socket.gethostname()
-        #ipaddr = self.getIpAddr("wlan0")
-        ipaddr = self.getIpAddr("wlp1s0")
-        return (hostname,ipaddr)
+        ifList = netifaces.interfaces()
+        print ifList
+        ipAddr = "xxx.xxx.xxx.xxx"
+        for ifName in ifList:
+            print ifName
+            if not ifName.startswith('lo'):
+                print "non lo interface found ",ifName
+                ifInfo = netifaces.ifaddresses(ifName).get(netifaces.AF_INET,[])
+                print ifInfo
+                if len(ifInfo)>0:
+                    ipAddr = ifInfo[0]['addr']
+                print ipAddr
+        return (hostname,ipAddr)
 
     def initGPIO(self):
         """Initialise the GPIO pins - note we use GPIO pin numbers, not physical
@@ -301,6 +302,11 @@ class bentv_ui:
         else:
             print "Using full screen framebuffer"
             self.screen = pygame.display.set_mode(self.fbSize, pygame.FULLSCREEN)
+            #print "using small screen"
+            #winSize = (640,480)
+            #self.screen = pygame.display.set_mode(winSize)
+            #self.fbSize = winSize
+
         print "blank screen..."
         self.screen.fill((0, 0, 255))        
         print "initialise fonts"
@@ -334,7 +340,10 @@ class bentv_ui:
  
 
     def getOpenSeizureDetectorData(self):
-        print "getOpenSeizureDetectorData"
+        """ Use HTTP GET request to retrieve seizure detector
+        data from an OpenSeizureDetector web interface.
+        """
+        #print "getOpenSeizureDetectorData"
         h = httplib2.Http(".cache")
         h.add_credentials(self.cfg.getConfigStr('uname'), 
                           self.cfg.getConfigStr('passwd'))
@@ -353,8 +362,8 @@ class bentv_ui:
             alarmThresh = int(dataDict['alarmThresh'])
             alarmRatioThresh = int(dataDict['alarmRatioThresh'])
             specRatio = 10*roiPower/specPower
-            print "specPower=%d, roiPower=%d, specRatio=%d" % \
-                (specPower,roiPower,specRatio)
+            #print "specPower=%d, roiPower=%d, specRatio=%d" % \
+            #    (specPower,roiPower,specRatio)
                             
             self.textLine1 = " Ratio = %d (status=%d - %s)" % \
                              (specRatio,

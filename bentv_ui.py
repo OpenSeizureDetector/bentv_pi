@@ -1,6 +1,7 @@
 #!/usr/bin/python
 ##########################################################################
-# bentv_ui, Copyright Graham Jones 2013, 2014 (grahamjones139@gmail.com)
+# bentv_ui, Copyright Graham Jones 2013, 2014,2017
+#    (grahamjones139@gmail.com)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -39,6 +40,10 @@
 #       In fit detector mode it instructs the fit detector to save a new
 #          background image.
 #
+# Requirements (ubuntu package names)
+#    python-httplib2
+#    python-pygame
+#    python-netifaces
 #
 ##########################################################################
 #
@@ -49,6 +54,7 @@ import pygame                       # Needed to drive display
 import socket, fcntl, struct        # Needed to get IP address
 from config_utils import ConfigUtil
 import json
+import netifaces
 
 haveGPIO = True
 try:
@@ -135,7 +141,8 @@ class bentv_ui:
         """Returns the hostname and IP address of the wireless interface as a tuple.
         """
         hostname = socket.gethostname()
-        ipaddr = self.getIpAddr("wlan0")
+        #ipaddr = self.getIpAddr("wlan0")
+        ipaddr = self.getIpAddr("wlp1s0")
         return (hostname,ipaddr)
 
     def initGPIO(self):
@@ -307,22 +314,27 @@ class bentv_ui:
     def moveCamera(self,pinNo):
         """Callback function when button is pressed"""
         print('moveCamera called by pin number %d. PresetNo=%d' % (pinNo,self.presetNo))
-        h = httplib2.Http(".cache")
-        h.add_credentials(self.cfg.getConfigStr('uname'), 
+        try:
+            h = httplib2.Http(".cache")
+            h.add_credentials(self.cfg.getConfigStr('uname'), 
                           self.cfg.getConfigStr('passwd'))
-        #resp, content = h.request("http://192.168.1.24/preset.cgi?-act=goto&-status=1&-number=%d" % self.presetNo,"GET")
-        resp, content = h.request("%s/%s%d" % (self.cfg.getConfigStr('camaddr'),
+            #resp, content = h.request("http://192.168.1.24/preset.cgi?-act=goto&-status=1&-number=%d" % self.presetNo,"GET")
+            resp, content = h.request("%s/%s%d" % (self.cfg.getConfigStr('camaddr'),
                                                self.cfg.getConfigStr('cammoveurl'),
                                                self.presetNo),"GET")
-        print "moved to preset %d - content=%s" % (self.presetNo,content)
+            print "moved to preset %d - content=%s" % (self.presetNo,content)
+        except:
+            print "Exception moving camera",sys.exc_info()[0]
+            
         self.textLine1 = "Camera Position %d (%s)" % (self.presetNo, 
                                                        self.presetTxt[self.presetNo])
         self.presetNo += 1
         if (self.presetNo > 4): self.presetNo = 1
 
  
-    def getBenFinderData(self):
-        #print "getBenfinderData"
+
+    def getOpenSeizureDetectorData(self):
+        print "getOpenSeizureDetectorData"
         h = httplib2.Http(".cache")
         h.add_credentials(self.cfg.getConfigStr('uname'), 
                           self.cfg.getConfigStr('passwd'))
@@ -335,48 +347,30 @@ class bentv_ui:
             resp, content = h.request(requestStr,
                                       "GET")
             dataDict = json.loads(content)
-            self.alarmStatus = int(dataDict['status'])
-            self.textLine1 = " Rate = %d bpm (status=%d - %s)" % \
-                             (int(dataDict['rate']),
-                              int(dataDict['status']),
-                                  self.statusStrs[int(dataDict['status'])]
-                             )
+            self.alarmStatus = int(dataDict['alarmState'])
+            specPower = int(dataDict['specPower'])
+            roiPower = int(dataDict['roiPower'])
+            alarmThresh = int(dataDict['alarmThresh'])
+            alarmRatioThresh = int(dataDict['alarmRatioThresh'])
+            specRatio = 10*roiPower/specPower
+            print "specPower=%d, roiPower=%d, specRatio=%d" % \
+                (specPower,roiPower,specRatio)
+                            
+            self.textLine1 = " Ratio = %d (status=%d - %s)" % \
+                             (specRatio,
+                              self.alarmStatus,
+                              dataDict['alarmPhrase'])
             #print dataDict['time_t']
-            self.textLine2 = " Fit Detector Time = %s  " % dataDict['time_t']
+            self.textLine2 = " Fit Detector Time = %s  " % dataDict['dataTime']
             #print resp,content
             return True
         except:
-            print "Error:",sys.exc_info()[0]
+            print "getOpenSeizureDetectorData Error:",sys.exc_info()[0]
             self.textLine1 = "No Connection to Fit Detector"
             return False
 
-    def setFitDectBackground(self):
-        """Tell the fit detector to initialise its background image from
-        the current image."""
-        print "setFitDectBackground()"
-        h = httplib2.Http(".cache")
-        h.add_credentials(self.cfg.getConfigStr('uname'), 
-                          self.cfg.getConfigStr('passwd'))
-        requestStr = "%s:%s/%s" % \
-                     (self.cfg.getConfigStr('benfinderserver'),
-                      self.cfg.getConfigStr('benfinderport'),
-                      self.cfg.getConfigStr('benfinderbackgroundurl'))
-        print requestStr
-        try:
-            resp, content = h.request(requestStr,
-                                      "GET")
-            print resp,content
-            self.textLine1 = "Fit Detector Background Image Reset"
-            self.textLine2 = " Press button to reset background.  Long press to change mode."
-        except:
-            print "Error:",sys.exc_info()[0]
-            self.textLine1 = "Error Initialising Fit Detector Background"
-            self.textLine2 = " Press button to reset background.  Long press to change mode."
-        self.lastDisplayUpdateTime = time.time() #Force message to display for
-                                                 # a little while before being
-                                                 # overwritten.
-        self.display_text()
 
+        
 
     def run(self):
         """bentv main loop"""
@@ -387,7 +381,7 @@ class bentv_ui:
             self.serviceUI()
             if (tnow-self.lastDisplayUpdateTime >= 1.0):
                 if (self.UIMode == self.FITDECT_MODE):
-                    self.getBenFinderData()
+                    self.getOpenSeizureDetectorData()
             if (tnow-self.lastDisplayUpdateTime >= 1.0):
                 self.display_text()
                 self.lastDisplayUpdateTime = tnow

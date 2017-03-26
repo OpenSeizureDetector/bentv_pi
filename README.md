@@ -8,7 +8,7 @@ The majority of the screen shows the video stream from an IP video camera.
 The bottom section of the screen shows the status of the OpenSeizureDetector
 seizure detection system, changing colour if a warning or alarm is initiated.
 
-[[https://github.com/openseizuredetector/bentv_pi/blob/master/imgages/screenshot.png|alt=screenshot]]
+![screenshot](https://github.com/OpenSeizureDetector/bentv_pi/blob/master/images/screenshot.jpg)
  
 
 Installation

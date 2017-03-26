@@ -98,6 +98,19 @@ class bentv_ui:
                         )
     alarmStatus = 0   # Current alarm status
 
+    # Dimensions of the status bar at the bottom of the screen.
+    statusBar_x = 0
+    statusBar_y = 380
+    statusbar_w = 640
+    statusbar_h = 100
+
+    alarmRatioThresh = 1
+    alarmRatio = 0
+    specRatio = 0
+    specPower = 0
+    alarmPhrase = ""
+    dataTime = ""
+
 
     def __init__(self):
         """Initialise the bentv_ui class - reads the configuration file
@@ -227,7 +240,7 @@ class bentv_ui:
         if (self.UIMode == self.CAMERA_MODE):
             print "Entering FitDetector Mode"
             self.textLine1 = "Fit Detector Mode"
-            self.textLine2 = " Press long button press to reset background.  Short press to change mode."
+            self.textLine2 = " Short press to change mode."
             self.UIMode = self.FITDECT_MODE
         else:
             print "Entering Camera Mode"
@@ -238,27 +251,27 @@ class bentv_ui:
         self.lastDisplayUpdateTime = time.time() #Force message to display for
                                                  # a little while before being
                                                  # overwritten.
-        self.display_text()
+        self.drawStatusBar()
 
-    def display_text(self):
+    def drawStatusBar(self):
         """ Write the given text onto the display area of the screen"""
         # Clear screen
         self.screen.fill(self.screenBGColours[self.alarmStatus])
         # Line 1 text
         txtImg = self.font.render(self.textLine1,
             True,(255,255,255))
-        self.screen.blit(txtImg,(0,380))
+        self.screen.blit(txtImg,(self.statusBar_x,self.statusBar_y))
         # Line 1 time
         tnow = time.localtime(time.time())
         txtStr = "%02d:%02d:%02d " % (tnow[3],tnow[4],tnow[5])
         w = self.font.size(txtStr)[0]
         txtImg = self.font.render(txtStr,
             True,(255,255,255))
-        self.screen.blit(txtImg,(self.fbSize[0]-w,380))
+        self.screen.blit(txtImg,(self.fbSize[0]-w,self.statusBar_y))
         # Line 2 text
         txtImg = self.smallFont.render(self.textLine2,
             True,(255,255,255))
-        self.screen.blit(txtImg,(0,400))
+        self.screen.blit(txtImg,(self.statusBar_x,self.statusBar_y + 20))
         # Line 2 network info
         txtStr = "Host: %s, IP: %s  " % (self.hostname, self.ipaddr)
         w = self.smallFont.size(txtStr)[0]
@@ -266,7 +279,27 @@ class bentv_ui:
                                        True,
                                        (255,255,255))
         
-        self.screen.blit(txtImg,(self.fbSize[0]-w,400))
+        self.screen.blit(txtImg,(self.fbSize[0]-w,self.statusBar_y + 20))
+
+
+        #Draw the spectrum ratio bar graph in middle of status bar.
+        rx = 300
+        ry=self.statusBar_y
+        rw = 20
+        rh = 40
+        pygame.draw.rect(self.screen,(0,0,0),(rx,ry,rw,rh))
+        marginPc = 100*self.specRatio/self.alarmRatioThresh
+        if marginPc > 100:
+            marginPc = 100
+        barh = rh*marginPc/100
+        if barh <2:
+            barh = 2
+        #print marginPc,barh
+        pygame.draw.rect(self.screen,(255,0,0),(rx,ry+rh-barh,
+                                                rw,barh))
+
+        
+
         pygame.display.update()
 
     def initScreen(self):    
@@ -313,8 +346,8 @@ class bentv_ui:
         pygame.font.init()
         self.font = pygame.font.Font(None,30)
         self.smallFont = pygame.font.Font(None,16)
-        print "calling display_text()"
-        self.display_text()
+        print "calling drawStatusBar()"
+        self.drawStatusBar()
         print "initScreen complete"
 
     def moveCamera(self,pinNo):
@@ -357,20 +390,24 @@ class bentv_ui:
                                       "GET")
             dataDict = json.loads(content)
             self.alarmStatus = int(dataDict['alarmState'])
-            specPower = int(dataDict['specPower'])
-            roiPower = int(dataDict['roiPower'])
-            alarmThresh = int(dataDict['alarmThresh'])
-            alarmRatioThresh = int(dataDict['alarmRatioThresh'])
-            specRatio = 10*roiPower/specPower
+            self.specPower = int(dataDict['specPower'])
+            self.roiPower = int(dataDict['roiPower'])
+            self.alarmThresh = int(dataDict['alarmThresh'])
+            self.alarmRatioThresh = int(dataDict['alarmRatioThresh'])
+            self.alarmPhrase = dataDict['alarmPhrase']
+            self.dataTime = dataDict['dataTime']
+            if (self.roiPower>self.alarmThresh):
+                self.specRatio = 10*self.roiPower/self.specPower
+            else:
+                self.specRatio = 0
             #print "specPower=%d, roiPower=%d, specRatio=%d" % \
             #    (specPower,roiPower,specRatio)
                             
-            self.textLine1 = " Ratio = %d (status=%d - %s)" % \
-                             (specRatio,
-                              self.alarmStatus,
-                              dataDict['alarmPhrase'])
+            self.textLine1 = " Ratio = %d / %d (%s)" % \
+                             (self.specRatio,self.alarmRatioThresh,
+                              self.alarmPhrase)
             #print dataDict['time_t']
-            self.textLine2 = " Fit Detector Time = %s  " % dataDict['dataTime']
+            self.textLine2 = " Fit Detector Time = %s  " % self.dataTime
             #print resp,content
             return True
         except:
@@ -392,7 +429,7 @@ class bentv_ui:
                 if (self.UIMode == self.FITDECT_MODE):
                     self.getOpenSeizureDetectorData()
             if (tnow-self.lastDisplayUpdateTime >= 1.0):
-                self.display_text()
+                self.drawStatusBar()
                 self.lastDisplayUpdateTime = tnow
             #print "main loop..."
             time.sleep(0.2)

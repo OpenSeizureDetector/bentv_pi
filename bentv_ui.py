@@ -255,52 +255,53 @@ class bentv_ui:
 
     def drawStatusBar(self):
         """ Write the given text onto the display area of the screen"""
-        # Clear screen
-        self.screen.fill(self.screenBGColours[self.alarmStatus])
-        # Line 1 text
-        txtImg = self.font.render(self.textLine1,
-            True,(255,255,255))
-        self.screen.blit(txtImg,(self.statusBar_x,self.statusBar_y))
-        # Line 1 time
-        tnow = time.localtime(time.time())
-        txtStr = "%02d:%02d:%02d " % (tnow[3],tnow[4],tnow[5])
-        w = self.font.size(txtStr)[0]
-        txtImg = self.font.render(txtStr,
-            True,(255,255,255))
-        self.screen.blit(txtImg,(self.fbSize[0]-w,self.statusBar_y))
-        # Line 2 text
-        txtImg = self.smallFont.render(self.textLine2,
-            True,(255,255,255))
-        self.screen.blit(txtImg,(self.statusBar_x,self.statusBar_y + 20))
-        # Line 2 network info
-        txtStr = "Host: %s, IP: %s  " % (self.hostname, self.ipaddr)
-        w = self.smallFont.size(txtStr)[0]
-        txtImg = self.smallFont.render(txtStr,
-                                       True,
-                                       (255,255,255))
-        
-        self.screen.blit(txtImg,(self.fbSize[0]-w,self.statusBar_y + 20))
+        try:
+            # Clear screen
+            self.screen.fill(self.screenBGColours[self.alarmStatus])
+            # Line 1 text
+            txtImg = self.font.render(self.textLine1,
+                True,(255,255,255))
+            self.screen.blit(txtImg,(self.statusBar_x,self.statusBar_y))
+            # Line 1 time
+            tnow = time.localtime(time.time())
+            txtStr = "%02d:%02d:%02d " % (tnow[3],tnow[4],tnow[5])
+            w = self.font.size(txtStr)[0]
+            txtImg = self.font.render(txtStr,
+                True,(255,255,255))
+            self.screen.blit(txtImg,(self.fbSize[0]-w,self.statusBar_y))
+            # Line 2 text
+            txtImg = self.smallFont.render(self.textLine2,
+                True,(255,255,255))
+            self.screen.blit(txtImg,(self.statusBar_x,self.statusBar_y + 20))
+            # Line 2 network info
+            txtStr = "Host: %s, IP: %s  " % (self.hostname, self.ipaddr)
+            w = self.smallFont.size(txtStr)[0]
+            txtImg = self.smallFont.render(txtStr,
+                                           True,
+                                           (255,255,255))
+
+            self.screen.blit(txtImg,(self.fbSize[0]-w,self.statusBar_y + 20))
 
 
-        #Draw the spectrum ratio bar graph in middle of status bar.
-        rx = 300
-        ry=self.statusBar_y
-        rw = 20
-        rh = 40
-        pygame.draw.rect(self.screen,(0,0,0),(rx,ry,rw,rh))
-        marginPc = 100*self.specRatio/self.alarmRatioThresh
-        if marginPc > 100:
-            marginPc = 100
-        barh = rh*marginPc/100
-        if barh <2:
-            barh = 2
-        #print marginPc,barh
-        pygame.draw.rect(self.screen,(255,0,0),(rx,ry+rh-barh,
-                                                rw,barh))
+            #Draw the spectrum ratio bar graph in middle of status bar.
+            rx = 300
+            ry=self.statusBar_y
+            rw = 20
+            rh = 40
+            pygame.draw.rect(self.screen,(0,0,0),(rx,ry,rw,rh))
+            marginPc = 100*self.specRatio/self.alarmRatioThresh
+            if marginPc > 100:
+                marginPc = 100
+            barh = rh*marginPc/100
+            if barh <2:
+                barh = 2
+            #print marginPc,barh
+            pygame.draw.rect(self.screen,(255,0,0),(rx,ry+rh-barh,
+                                                    rw,barh))
 
-        
-
-        pygame.display.update()
+            pygame.display.update()
+        except:
+            print "Error in DrawStatusBar()"
 
     def initScreen(self):    
         """Initialise the display using the pygame library"""
@@ -412,6 +413,7 @@ class bentv_ui:
             return True
         except:
             print "getOpenSeizureDetectorData Error:",sys.exc_info()[0]
+            print "getOpenSeizureDetectorData Error"
             self.textLine1 = "No Connection to Fit Detector"
             return False
 

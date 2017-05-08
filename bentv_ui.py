@@ -91,10 +91,13 @@ class bentv_ui:
                                # (area below config area_threshold parameter)
 
     statusStrs = ("OK","Warning","ALARM!!!","Ben Not Found")
-    screenBGColours = ( (0,0,255), # Blue for all ok
-                        (128,128,0), # Yellow for warning
-                        (255,0,0),  # Red for full alarm.
-                        (128,128,128) # Grey for not found.
+    screenBGColours = ( (0,0,255), # Blue for all ok (0)
+                        (128,128,0), # Yellow for warning (1)
+                        (255,0,0),  # Red for full alarm. (2)
+                        (255,0,0), # Red for fall alarm. (3)
+                        (128,128,0), # Yellow for fault (4)
+                        (255,0,0),  # Red for manual alarm. (5)
+                        (128,128,128),  # Grey for mute. (6)
                         )
     alarmStatus = 0   # Current alarm status
 
